@@ -65,30 +65,35 @@ Auto-Quant runs as a **directed state machine** (via LangGraph)—not a chaotic 
 
 Here is the exact journey of a query from input to report.
 
-### The Agent Roster
+# AI Analysis Architecture
 
-**🎯 Intake Agent** — Receives your raw query (`"analyze amzn"`). Validates and fuzzy-matches the ticker. Uses an LLM to classify intent into a list of required analyses (e.g., `['fundamental', 'sentiment']`). Produces a structured `AnalysisRequest` object that seeds the entire graph.
 
-**🧠 Supervisor** — Reads the `AnalysisRequest` and the user's specific questions. Generates a typed `ExecutionPlan` with specific instructions for each worker. Dispatches research workers **in parallel** using LangGraph's `Send()` API. If a re-research loop is triggered, the Supervisor reads the critique and generates a new, targeted plan.
+## 🎯 Intake Agent
+Processes the initial query (e.g., `"analyze amzn"`) by utilizing the `ticker_validator.py` tool to perform fuzzy-matching and ticker validation. It uses an LLM to classify user intent into required analysis types like fundamental, sentiment, or quant, producing a structured `AnalysisRequest` that initializes the graph state.
 
-**📊 Fundamental Analyst** — Fetches live fundamental ratios from yFinance. Surgically scrapes the SEC EDGAR database to extract the **Management's Discussion & Analysis (MD&A)** and **Risk Factors** from the latest 10-K/10-Q. It forces the LLM to cross-examine management's narrative against the raw numbers. Returns a typed `FundamentalReport`.
+## 🧠 Supervisor
+Acts as the orchestrator of the LangGraph workflow defined in `graph_builder.py`. It reads the `AnalysisRequest` to generate a specific `ExecutionPlan` for worker agents. It manages parallel dispatching and handles re-research loops if the Synthesis Agent provides a critique requiring more data.
 
-**💬 Sentiment Analyst** — Uses an LLM to generate 3-4 distinct NewsAPI queries (bull case, bear case, sector trends) to get a 360-degree view. Fetches and deduplicates all articles. Pulls live interest rates and CPI from the Federal Reserve FRED API to add macro context. Returns a `SentimentReport`.
+## 📊 Fundamental Analyst
+Conducts deep-dive financial research. It uses the `financial_data_tool.py` (via `yFinance`) to fetch live ratios such as P/E and Debt-to-Equity. It also employs the `sec_edgar_tool.py`, which uses `BeautifulSoup` to surgically scrape the SEC EDGAR database for MD&A and Risk Factors from the latest 10-K/10-Q filings.
 
-**📈 Quant Coder** — **100% Deterministic & Safe.** This agent does *not* use an LLM to write code. It uses hardcoded Python and `pandas` to calculate all technical indicators (SMA-50, SMA-200, RSI-14). It then uses a robust `matplotlib` function to generate a professional, multi-panel dashboard. The LLM is only used to write the English-language technical summary. This guarantees 100% reliability and zero risk of code-generation failure.
+## 💬 Sentiment Analyst
+Evaluates market narrative and catalysts. It utilizes the `enhanced_news_fetcher.py` tool to extract news from Finnhub and Tavily. Crucially, it also calls the `macro_context_tool.py` to pull real-time economic indicators (CPI, GDP, Interest Rates) from the Federal Reserve FRED API to provide the `"big picture"` context for the sentiment report.
 
-**⚠️ Risk Validator** — Receives all three worker reports. Computes a Contradiction Score (0.0-1.0) across their conclusions. Runs a Data Freshness Audit on all sources. Produces an `overall_risk_level` and a plain-English description of the primary contradiction.
+## 📈 Quant Coder
+An agentic coder that dynamically generates Python scripts for technical analysis. The generated code is first inspected by the `ast_analyzer.py` for security vulnerabilities and is then executed in a Secure Docker Sandbox via the `sandbox_executor.py`. It produces professional technical dashboards and charts (saved to the `charts/` directory) using `pandas` and `matplotlib`.
 
-**🔮 Synthesis Agent** — The intellectual core. It runs a 3-step prompt chain:
-1.  **Draft:** Generates an initial investment thesis.
-2.  **Critique:** Adopts a *Skeptical Senior Portfolio Manager* persona, critiques its own draft, and assigns an initial confidence score.
-3.  **Revise & Finalize:** Incorporates the critique and produces the final thesis text and the final, official `confidence_score`. If this score is below 65, the `re_research_request` from the critique step is passed back to the Supervisor.
+## ⚠️ Risk Validator
+Performs a final audit on all analyst findings. It computes a `Contradiction Score` to identify conflicting conclusions between fundamental and sentiment data. It also runs a `Data Freshness Audit` to ensure all source data is current before the synthesis step.
 
-**👤 Human-in-the-Loop Checkpoint** — Graph execution physically halts here using LangGraph's `interrupt_before`. You see the final confidence score, any contradiction flags, and the thesis draft. The pipeline does not continue without your approval.
+## 🔮 Synthesis Agent
+The intellectual core of the system. It generates an initial investment thesis, critiques it from the perspective of a skeptical Portfolio Manager, and produces a final `confidence_score`. If the score is below the required threshold, it issues a `re_research_request` to the Supervisor to restart the cycle.
 
-**📝 Report Compiler** — Receives the approved synthesis and formats a full structured Markdown report using Llama 3.1 8B. It intelligently omits sections if their source data was unavailable (e.g., no Quant data).
+## 👤 Human-in-the-Loop Checkpoint
+A safety gate that utilizes LangGraph's `interrupt_before` functionality. The graph execution halts, allowing you to review the synthesis, confidence score, and contradiction flags in the Streamlit UI before the final report is compiled.
 
----
+## 📝 Report Compiler
+Finalizes the process by formatting all approved data into a structured Markdown report. It uses Llama 3 (via the `nvidia_nim_client.py`) to ensure an institutional-grade tone and intelligently omits sections if specific source data was missing or unavailable.
 
 ## ⚡ Performance
 
