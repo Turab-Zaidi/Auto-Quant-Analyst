@@ -1,0 +1,36 @@
+[project]
+name = "auto-quant-analyst"
+version = "0.1.0"
+description = "Enterprise-Grade Multi-Agent Hedge Fund Intelligence System"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=0.0.65",
+    "langchain-nvidia-ai-endpoints>=0.1.2",
+    "langchain-core>=0.2.0",
+    "streamlit>=1.35.0",
+    "pydantic>=2.7.0",
+    "redis>=5.0.4",
+    "chromadb>=0.5.0",
+    "pandas>=2.2.2",
+    "matplotlib>=3.9.0",
+    "yfinance>=0.2.40",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.3",
+    "tavily-python>=0.3.3",
+    "bandit>=1.7.9",
+    "python-dotenv>=1.0.1",
+    "fredapi",
+    "newsapi-python",
+    "praw",
+    "vaderSentiment",
+    "sec-edgar-api",
+    "newspaper3k",
+    "markdown",
+    "xhtml2pdf"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "black>=24.4.2",
+]
